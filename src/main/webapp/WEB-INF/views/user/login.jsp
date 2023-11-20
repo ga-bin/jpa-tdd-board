@@ -7,6 +7,6 @@
 <title>Insert title here</title>
 </head>
 <body>
-	<a href="#"><img height="38px" src="/image/user/kakao_login_button.png"></img></a>
+	<a href="https://kauth.kakao.com/oauth/authorize"><img height="38px" src="/image/user/kakao_login_button.png"></img></a>
 </body>
 </html>
