@@ -25,22 +25,25 @@ public class User {
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private int userId;
-	private String id;
+	private String loginId;
 	private String password;
 	private String userName;
 	@CreatedDate
 	private LocalDateTime registDt;
 	@UpdateTimestamp
 	private LocalDateTime updateDt;
+	
+	private String refreshToken;
 
 	public UserDTO toDTO() {
 		UserDTO userDTO = UserDTO.builder()
 							.userId(userId)
-							.id(id)
+							.loginId(loginId)
 							.password(password)
 							.userName(userName)
 							.registDt(registDt)
 							.updateDt(updateDt)
+							.refreshToken(refreshToken)
 							.build();
 		
 		return userDTO;

@@ -27,7 +27,7 @@ public class SecurityConfig {
 				})
 				
 				.formLogin((formLogin) -> {
-					formLogin.loginPage("/catlogin");
+					formLogin.loginPage("/loginView");
 				})
 				
 				

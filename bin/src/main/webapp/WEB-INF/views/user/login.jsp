@@ -7,7 +7,6 @@
 <title>Insert title here</title>
 </head>
 <body>
-	<a href="/kakaoOAuth"><img height="38px" src="/image/user/kakao_login_button.png"></img></a>
-	<a href="/kakaoLogout">카카오 로그아웃</a>
+	<a href="#"><img height="38px" src="/image/user/kakao_login_button.png"></img></a>
 </body>
 </html>
