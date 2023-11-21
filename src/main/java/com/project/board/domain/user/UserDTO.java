@@ -16,20 +16,22 @@ import lombok.Setter;
 public class UserDTO {
 
 	private int userId;
-	private String id;
+	private String loginId;
 	private String password;
 	private String userName;
 	private LocalDateTime registDt;
 	private LocalDateTime updateDt;
+	private String refreshToken;
 	
 	public User toEntity() {
 		User user = User.builder()
 						.userId(userId)
-						.id(id)
+						.loginId(loginId)
 						.password(password)
 						.userName(userName)
 						.registDt(registDt)
 						.updateDt(updateDt)
+						.refreshToken(refreshToken)
 						.build();
 		
 		return user;

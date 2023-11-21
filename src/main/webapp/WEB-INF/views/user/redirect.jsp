@@ -8,5 +8,9 @@
 </head>
 <body>
 	<h1>고양이는 천재!</h1>
+	<h1>로그인 성공!</h1>
 </body>
+<script>
+	
+</script>
 </html>

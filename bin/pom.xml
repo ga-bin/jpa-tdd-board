@@ -5,7 +5,7 @@
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>2.7.5</version>
+		<version>3.1.5</version>
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>com.project</groupId>
@@ -62,6 +62,7 @@
 	    <dependency>
 		    <groupId>javax.servlet</groupId>
 		    <artifactId>jstl</artifactId>
+		    <version>1.2</version>
 		</dependency>
 		<dependency>
 		    <groupId>org.apache.tomcat.embed</groupId>
@@ -71,10 +72,6 @@
         	<groupId>org.springframework.security</groupId>
         	<artifactId>spring-security-crypto</artifactId>
     	</dependency>
-		<dependency>
-		    <groupId>com.google.code.gson</groupId>
-		    <artifactId>gson</artifactId>
-		</dependency>
 	</dependencies>
 
 	<build>
