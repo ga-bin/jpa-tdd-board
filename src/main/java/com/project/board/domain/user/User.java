@@ -7,6 +7,7 @@ import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
 
+import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.springframework.data.annotation.CreatedDate;
 
@@ -28,7 +29,8 @@ public class User {
 	private String loginId;
 	private String password;
 	private String userName;
-	@CreatedDate
+	private String nickName;
+	@CreationTimestamp
 	private LocalDateTime registDt;
 	@UpdateTimestamp
 	private LocalDateTime updateDt;

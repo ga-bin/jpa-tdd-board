@@ -86,51 +86,33 @@ public class KakaoServiceImpl implements KakaoService {
 	@Override
 	public HashMap<String, String> kakaoLogin(String code) {
 		// accessToken과 userInfo 가져오기
-		String accessToken = getKakaoAccessToken(code);
+		String parsedCode = pasingKakaoCodeToJson(code);
+		String accessToken = getKakaoToken(parsedCode, "access_token");
 		HashMap<String, Object> kakaoUserInfo = getKakaoUserInfo(accessToken);
 		String loginId = kakaoUserInfo.get("loginId").toString();
 		String nickName = kakaoUserInfo.get("nickName").toString();
 
 		// 전달할 정보 담기
-		HashMap<String, String> returnMap = new HashMap<>(); 
-		returnMap.put("accessToken", accessToken);
-		returnMap.put("nickName", nickName);
+		HashMap<String, String> userInfoMap = new HashMap<>(); 
+		userInfoMap.put("accessToken", accessToken);
+		userInfoMap.put("nickName", nickName);
+		userInfoMap.put("loginId", loginId);
 		
 		// 해당 아이디가 존재하는지 확인
 		User findUser = userRepository.findByLoginId(loginId); 
 		if(findUser == null) {
-			returnMap.put("returnMessage", "needSignIn");
-			return returnMap;
+			saveUser(parsedCode, userInfoMap);
+			userInfoMap.put("returnMessage", "needExtraInfo");
+			return userInfoMap;
 		} else {
-			updateRefreshToken(code, findUser.toDTO());
-			returnMap.put("returnMessage", "loginSuccess");
-			return returnMap;
+			updateRefreshToken(parsedCode, findUser.toDTO());
+			userInfoMap.put("returnMessage", "loginSuccess");
+			return userInfoMap;
 		}		
 	}
 
 
-
-	private void updateRefreshToken(String code, UserDTO userDTO) {
-		JsonElement element = JsonParser.parseString(code);
-		String refreshToken = element.getAsJsonObject().get("refresh_token").getAsString();
-		
-		if(!userDTO.getRefreshToken().equals(refreshToken)) {
-			userDTO.setRefreshToken(refreshToken);
-			userRepository.save(userDTO.toEntity());
-		}
-	}
-	
-
-	public String getKakaoAccessToken(String code) {
-		String parsedCode = pasingKakaoCodeToJsonElement(code);
-		JsonElement element = JsonParser.parseString(parsedCode);
-		String accessToken = element.getAsJsonObject().get("access_token").getAsString();
-		
-		return accessToken;
-	}
-
-
-	private String pasingKakaoCodeToJsonElement(String code) {
+	private String pasingKakaoCodeToJson(String code) {
 		RestTemplate restTemplate = new RestTemplate();
 		
 		// 헤더 설정
@@ -163,42 +145,34 @@ public class KakaoServiceImpl implements KakaoService {
 	       
 	}
 	
-	// 나중에 이 accesstoken으로 요청할 경우 사용
-	public boolean checkAccessTokenExpire(String accessToken) {
-		RestTemplate restTemplate = new RestTemplate();
-		String accessTokenInfoUri = REQ_ACCESSTOKEN_INFO_URI + "?access_token=" + accessToken;
-		UriComponentsBuilder uriComponentsBuilder = UriComponentsBuilder.fromHttpUrl(accessTokenInfoUri);
+	private void saveUser(String parsedCode, HashMap<String, String> userInfoMap) {
+		UserDTO userDTO = new UserDTO();
+		String refreshToken = getKakaoToken(parsedCode, "refresh_token");
+		userDTO.setLoginId(userInfoMap.get("loginId").toString());
+		userDTO.setNickName(userInfoMap.get("nickName").toString());
+		userDTO.setRefreshToken(refreshToken);
 		
-		
-		// header설정
-		HttpHeaders headers = new HttpHeaders();
-		HttpEntity<String> request = new HttpEntity<>(headers);
-		
-		
-		// 요청 받기
-		ResponseEntity<String> responseEntity = restTemplate.exchange(
-				uriComponentsBuilder.toUriString(), 
-				HttpMethod.GET, 
-				request, 
-				String.class
-				);
-		
-		HttpStatus responseCode = responseEntity.getStatusCode();
-		
-		if(responseCode == HttpStatus.BAD_REQUEST) {
-			new RuntimeException("카카오 서비스에 일시적 장애가 발생했습니다.");
-			return false;
-		}
-		
-		if(responseCode == HttpStatus.UNAUTHORIZED) {
-			return false;
-		}
-		
-		return true;
+		userRepository.save(userDTO.toEntity());
 	}
 
 	
+	private void updateRefreshToken(String parsedCode, UserDTO userDTO) {
+		String refreshToken = getKakaoToken(parsedCode, "refresh_token");
+		
+		if(!userDTO.getRefreshToken().equals(refreshToken)) {
+			userDTO.setRefreshToken(refreshToken);
+			userRepository.save(userDTO.toEntity()); 
+		}
+	}
 	
+	
+	private String getKakaoToken(String parsedCode, String tokenName) {
+		JsonElement element = JsonParser.parseString(parsedCode);
+		String token = element.getAsJsonObject().get(tokenName).getAsString();
+		
+		return token;
+	}
+
 	private HashMap<String, Object> getKakaoUserInfo(String accessToken) {
 		HashMap<String, Object> userInfoMap = new HashMap<>();
 		RestTemplate restTemplate = new RestTemplate();
@@ -239,9 +213,48 @@ public class KakaoServiceImpl implements KakaoService {
 	}
 
 	
+	
+	// 나중에 이 accesstoken으로 요청할 경우 사용
+	public boolean checkAccessTokenExpire(String accessToken) {
+		RestTemplate restTemplate = new RestTemplate();
+		String accessTokenInfoUri = REQ_ACCESSTOKEN_INFO_URI + "?access_token=" + accessToken;
+		UriComponentsBuilder uriComponentsBuilder = UriComponentsBuilder.fromHttpUrl(accessTokenInfoUri);
+		
+		
+		// header설정
+		HttpHeaders headers = new HttpHeaders();
+		HttpEntity<String> request = new HttpEntity<>(headers);
+		
+		
+		// 요청 받기
+		ResponseEntity<String> responseEntity = restTemplate.exchange(
+				uriComponentsBuilder.toUriString(), 
+				HttpMethod.GET, 
+				request, 
+				String.class
+				);
+		
+		HttpStatus responseCode = responseEntity.getStatusCode();
+		
+		if(responseCode == HttpStatus.BAD_REQUEST) {
+			new RuntimeException("카카오 서비스에 일시적 장애가 발생했습니다.");
+			return false;
+		}
+		
+		if(responseCode == HttpStatus.UNAUTHORIZED) {
+			return false;
+		}
+		
+		return true;
+	}
+
+	
+	
+	
+	
 	// 나중에 이 accesstoken으로 요청할 경우 사용
 	private String refreshAccessToken(String code) {
-		String parsedCode = pasingKakaoCodeToJsonElement(code);
+		String parsedCode = pasingKakaoCodeToJson(code);
 		JsonElement element = JsonParser.parseString(parsedCode);
 		String refreshToken = element.getAsJsonObject().get("refresh_token").getAsString();
 		
@@ -258,9 +271,20 @@ public class KakaoServiceImpl implements KakaoService {
 	}
 
 	@Override
-	public void signIn(Map<String, Object> signInInfoMap) {
-		UserDTO userDTO = new UserDTO();
-		userDTO.setLoginId(AUTHORIZE_URI);
+	public void updateUser(Map<String, Object> userInfoMap, String accessToken) {
+		HashMap<String, Object> kakaoUserInfoMap = getKakaoUserInfo(accessToken);
+		String loginId = kakaoUserInfoMap.get("loginId").toString();
+		String userName = userInfoMap.get("userName").toString();
+		String nickName = userInfoMap.get("nickName").toString();
+		
+		User user = userRepository.findByLoginId(loginId);
+		
+		if(user != null) {
+			UserDTO userDTO = user.toDTO();
+			userDTO.setUserName(userName);
+			userDTO.setNickName(nickName);
+			userRepository.save(userDTO.toEntity());
+		}
 	}
 
 }

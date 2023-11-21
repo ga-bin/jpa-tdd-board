@@ -18,11 +18,9 @@ public interface KakaoService {
 
 	public HashMap<String, String> kakaoLogin(String code);
 
-	public String getKakaoAccessToken(String code);
-
 	public void setAccessTokenInCookie(String accessToken, HttpServletResponse response);
 
-	public void signIn(Map<String, Object> signInInfoMap);
-
 	public boolean checkAccessTokenExpire(String accessToken);
+
+	public void updateUser(Map<String, Object> userInfoMap, String accessToken);
 }

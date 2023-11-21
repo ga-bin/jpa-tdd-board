@@ -19,6 +19,7 @@ public class UserDTO {
 	private String loginId;
 	private String password;
 	private String userName;
+	private String nickName;
 	private LocalDateTime registDt;
 	private LocalDateTime updateDt;
 	private String refreshToken;
@@ -29,6 +30,7 @@ public class UserDTO {
 						.loginId(loginId)
 						.password(password)
 						.userName(userName)
+						.nickName(nickName)
 						.registDt(registDt)
 						.updateDt(updateDt)
 						.refreshToken(refreshToken)

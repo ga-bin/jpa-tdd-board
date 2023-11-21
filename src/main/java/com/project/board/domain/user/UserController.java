@@ -52,24 +52,29 @@ public class UserController {
 		kakaoService.setAccessTokenInCookie(accessToken, response);
 		model.addAttribute("nickName", nickName);
 		
-		if(returnMessage == "needSignIn") {
-			return "user/signIn";
+		if(returnMessage == "needExtraInfo") {
+			return "user/extraInfo";
 		}
 		
 		return "user/redirect";
 	}
 	
 	@ResponseBody
-	@PostMapping("/kakaoSignIn") 
-	public String kakaoSignIn(@CookieValue(name = "accessToken", required = true) String accessToken,@RequestBody Map<String, Object> signInInfoMap) {
+	@PostMapping("/kakaoLoginExtraInfo") 
+	public String kakaoSignIn(@CookieValue(name = "accessToken", required = true) String accessToken,@RequestBody Map<String, Object> userInfoMap) {
 		if(kakaoService.checkAccessTokenExpire(accessToken)) {
-			kakaoService.signIn(signInInfoMap);			
+			kakaoService.updateUser(userInfoMap, accessToken);			
 			return "success";
 		} else {
 			return "accessTokenExpired"; 
 		}
 		
-		
+	}
+	
+	
+	@GetMapping("/redirect")
+	public String redirectView() {
+		return "user/redirect";
 	}
 	
 	

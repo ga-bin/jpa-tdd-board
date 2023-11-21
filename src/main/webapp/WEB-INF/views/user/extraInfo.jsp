@@ -11,7 +11,7 @@
 	<label>닉네임 : </label>
 	<input value="${nickName }" id="nickName"></input>
 	<label>이름 : </label>
-	<input id="name"></input>
+	<input id="userName"></input>
 	<button id="signInButton">회원가입</button>
 <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
 <script>
@@ -23,16 +23,16 @@
 	const func = {
 		signIn : function() {
 			const nickName = $('#nickName').val();
-			const name = $('#name').val();
+			const userName = $('#userName').val();
 			
 			const data = {
 				nickName: nickName,
-				name: name
+				userName: userName
 			};
 			
 			 $.ajax({
                  type: 'POST',
-                 url: '/kakaoSignIn',
+                 url: '/kakaoLoginExtraInfo',
                  contentType: 'application/json;charset=UTF-8',
                  data: JSON.stringify(data),
                  success: function(response) {
@@ -40,6 +40,8 @@
                      if(response == "accessTokenExpired") {
                     	alert("다시 회원가입을 시도해주세요");
                     	location.href="/loginView";
+                     } else {
+                    	 location.href="/redirect";
                      }
                  },
                  error: function(error) {
