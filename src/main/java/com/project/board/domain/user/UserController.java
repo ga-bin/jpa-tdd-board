@@ -21,4 +21,9 @@ public class UserController {
 	public String loginView() {
 		return "user/login";
 	}
+	
+	@GetMapping("/api/u/kakaologin")
+	public String kakaoLogin() {
+		return "user/redirect";
+	}
 }
