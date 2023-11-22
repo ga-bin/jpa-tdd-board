@@ -3,14 +3,11 @@ package com.project.board.domain.user;
 import java.util.HashMap;
 import java.util.Map;
 
-import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletResponse;
-import javax.servlet.http.HttpSession;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -22,18 +19,20 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
+import com.project.board.common.HttpService;
+import com.project.board.common.security.TokenProvider;
 
 @Service
 public class KakaoServiceImpl implements KakaoService {
 
-	private final HttpSession httpSession;
 	private final UserRepository userRepository;
+	private final HttpService httpService;
 	
 	
 	@Autowired
-	public KakaoServiceImpl(HttpSession httpSession, UserRepository userRepository){
-		this.httpSession = httpSession;
+	public KakaoServiceImpl(UserRepository userRepository, HttpService httpService){
 		this.userRepository = userRepository;
+		this.httpService = httpService;
 	}
 	
 	
@@ -63,6 +62,8 @@ public class KakaoServiceImpl implements KakaoService {
 	private String REQ_ACCESSTOKEN_INFO_URI = "https://kapi.kakao.com/v1/user/access_token_info";
 	
 	
+	private String LOGOUT_URI = "https://kapi.kakao.com/v1/user/logout";
+	
 	public RedirectView goKakaoOAuth() {
 		return goKakaoOAuth("");
 	}
@@ -78,9 +79,32 @@ public class KakaoServiceImpl implements KakaoService {
 	}
 
 	@Override
-	public void kakaoLogout(HttpSession httpSession) {
+	public void kakaoLogout(String accessToken) {
+		HashMap<String, Object> kakaoUserInfo = getKakaoUserInfo(accessToken);
+		String loginId = kakaoUserInfo.get("loginId").toString();
 		
-		String result; 
+		RestTemplate restTemplate = new RestTemplate();
+		
+		// 헤더 설정
+		HashMap<String, String> headerValues = new HashMap<>();
+		headerValues.put("Authorization", "Bearer " + accessToken);
+		HttpEntity<Object> request = httpService.setHttpHeaderInHttpEntity(headerValues, null);
+		
+		
+		// uri builder로 요청 uri만들기
+		UriComponentsBuilder uriComponentsBuilder = UriComponentsBuilder.fromHttpUrl(LOGOUT_URI)
+						.queryParam("target_id_type", "user_id")
+						.queryParam("target_id", loginId);
+				
+		// 요청 받기
+		restTemplate.exchange(
+			uriComponentsBuilder.toUriString(), 
+			HttpMethod.POST, 
+			request, 
+			String.class
+		);
+		
+		
 	}
 
 	@Override
@@ -88,6 +112,7 @@ public class KakaoServiceImpl implements KakaoService {
 		// accessToken과 userInfo 가져오기
 		String parsedCode = pasingKakaoCodeToJson(code);
 		String accessToken = getKakaoToken(parsedCode, "access_token");
+		String refreshToken = getKakaoToken(parsedCode, "refresh_token");
 		HashMap<String, Object> kakaoUserInfo = getKakaoUserInfo(accessToken);
 		String loginId = kakaoUserInfo.get("loginId").toString();
 		String nickName = kakaoUserInfo.get("nickName").toString();
@@ -95,6 +120,7 @@ public class KakaoServiceImpl implements KakaoService {
 		// 전달할 정보 담기
 		HashMap<String, String> userInfoMap = new HashMap<>(); 
 		userInfoMap.put("accessToken", accessToken);
+		userInfoMap.put("refreshToken", refreshToken);
 		userInfoMap.put("nickName", nickName);
 		userInfoMap.put("loginId", loginId);
 		
@@ -105,7 +131,7 @@ public class KakaoServiceImpl implements KakaoService {
 			userInfoMap.put("returnMessage", "needExtraInfo");
 			return userInfoMap;
 		} else {
-			updateRefreshToken(parsedCode, findUser.toDTO());
+			updateRefreshToken(userInfoMap, findUser.toDTO());
 			userInfoMap.put("returnMessage", "loginSuccess");
 			return userInfoMap;
 		}		
@@ -116,9 +142,7 @@ public class KakaoServiceImpl implements KakaoService {
 		RestTemplate restTemplate = new RestTemplate();
 		
 		// 헤더 설정
-		HttpHeaders headers = new HttpHeaders();
-		headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
-		HttpEntity<Object> request = new HttpEntity<>(headers);
+		HttpEntity<Object> request = httpService.setHttpHeaderInHttpEntity(null, MediaType.APPLICATION_FORM_URLENCODED);
 		
 		// uri builder로 요청 uri만들기
 		UriComponentsBuilder uriComponentsBuilder = UriComponentsBuilder.fromHttpUrl(TOKEN_URI)
@@ -147,21 +171,20 @@ public class KakaoServiceImpl implements KakaoService {
 	
 	private void saveUser(String parsedCode, HashMap<String, String> userInfoMap) {
 		UserDTO userDTO = new UserDTO();
-		String refreshToken = getKakaoToken(parsedCode, "refresh_token");
 		userDTO.setLoginId(userInfoMap.get("loginId").toString());
 		userDTO.setNickName(userInfoMap.get("nickName").toString());
-		userDTO.setRefreshToken(refreshToken);
-		
+		userDTO.setRefreshToken(userInfoMap.get("refreshToken").toString());
+		userDTO.setTokenProvider(TokenProvider.KAKAO.getProvider());
 		userRepository.save(userDTO.toEntity());
 	}
 
 	
-	private void updateRefreshToken(String parsedCode, UserDTO userDTO) {
-		String refreshToken = getKakaoToken(parsedCode, "refresh_token");
+	private void updateRefreshToken(HashMap<String, String> userInfoMap, UserDTO findUser) {
+		String refreshToken = userInfoMap.get("refreshToken").toString();
 		
-		if(!userDTO.getRefreshToken().equals(refreshToken)) {
-			userDTO.setRefreshToken(refreshToken);
-			userRepository.save(userDTO.toEntity()); 
+		if(!findUser.getRefreshToken().equals(refreshToken)) {
+			findUser.setRefreshToken(refreshToken);
+			userRepository.save(findUser.toEntity()); 
 		}
 	}
 	
@@ -178,10 +201,9 @@ public class KakaoServiceImpl implements KakaoService {
 		RestTemplate restTemplate = new RestTemplate();
 		
 		// 헤더 설정
-		HttpHeaders headers = new HttpHeaders();
-		headers.set("Authorization", "Bearer " + accessToken);
-		headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
-		HttpEntity<String> request = new HttpEntity<>(headers);
+		HashMap<String, String> headerValues = new HashMap<>();
+		headerValues.put("Authorization", "Bearer " + accessToken);
+		HttpEntity<Object> request = httpService.setHttpHeaderInHttpEntity(headerValues, MediaType.APPLICATION_FORM_URLENCODED);
 		
 		// uri설정
 		UriComponentsBuilder uriComponentsBuilder = UriComponentsBuilder.fromHttpUrl(REQ_USER_INFO_URI);
@@ -217,13 +239,13 @@ public class KakaoServiceImpl implements KakaoService {
 	// 나중에 이 accesstoken으로 요청할 경우 사용
 	public boolean checkAccessTokenExpire(String accessToken) {
 		RestTemplate restTemplate = new RestTemplate();
-		String accessTokenInfoUri = REQ_ACCESSTOKEN_INFO_URI + "?access_token=" + accessToken;
-		UriComponentsBuilder uriComponentsBuilder = UriComponentsBuilder.fromHttpUrl(accessTokenInfoUri);
+		UriComponentsBuilder uriComponentsBuilder = UriComponentsBuilder.fromHttpUrl(REQ_ACCESSTOKEN_INFO_URI);
 		
 		
-		// header설정
-		HttpHeaders headers = new HttpHeaders();
-		HttpEntity<String> request = new HttpEntity<>(headers);
+		// 헤더 설정
+		HashMap<String, String> headerValues = new HashMap<>();
+		headerValues.put("Authorization", "Bearer " + accessToken);
+		HttpEntity<Object> request = httpService.setHttpHeaderInHttpEntity(headerValues, null);
 		
 		
 		// 요청 받기
@@ -248,28 +270,69 @@ public class KakaoServiceImpl implements KakaoService {
 		return true;
 	}
 
-	
-	
-	
+
 	
 	// 나중에 이 accesstoken으로 요청할 경우 사용
-	private String refreshAccessToken(String code) {
-		String parsedCode = pasingKakaoCodeToJson(code);
-		JsonElement element = JsonParser.parseString(parsedCode);
-		String refreshToken = element.getAsJsonObject().get("refresh_token").getAsString();
+	public HashMap<String, String> refreshToken(String refreshToken, HttpServletResponse response) {
+		HashMap<String, String> refreshedTokens = getRefreshedTokens(refreshToken);
+		return refreshedTokens;
+	}
+	
+
+
+	private HashMap<String, String> getRefreshedTokens(String refreshToken) {
+		RestTemplate restTemplate = new RestTemplate();
+		HashMap<String, String> refreshedTokens = new HashMap<>();
 		
-		return null;
+		// 헤더 설정
+		HttpEntity<Object> request = httpService.setHttpHeaderInHttpEntity(null, MediaType.APPLICATION_FORM_URLENCODED);
+		
+		
+		// uri builder로 요청 uri만들기
+		UriComponentsBuilder uriComponentsBuilder = UriComponentsBuilder.fromHttpUrl(TOKEN_URI)
+				.queryParam("grant_type", "refresh_token")
+				.queryParam("client_id", REST_API_KEY)
+				.queryParam("refresh_token", refreshToken)
+				.queryParam("client_secret", CLIENT_SECRET);
+		
+		// 요청 uri와 header 전송
+       ResponseEntity<String> responseEntity = restTemplate.exchange(
+    		uriComponentsBuilder.toUriString(),
+    		HttpMethod.POST,
+    		request,
+    		String.class
+       );
+       
+       // refresh된 토큰 정보들 받아오기
+       String responseBody = responseEntity.getBody();
+       JsonElement element = JsonParser.parseString(responseBody);
+	   String refreshedAccessToken = element.getAsJsonObject().get("access_token").getAsString();
+	   String refreshedRefreshToken = element.getAsJsonObject().get("refresh_token").getAsString();
+	   
+	   refreshedTokens.put("refreshedAccessToken", refreshedAccessToken);
+	   refreshedTokens.put("refreshedRefreshToken", refreshedRefreshToken);
+	   
+	   return refreshedTokens;
 	}
 
-	@Override
-	public void setAccessTokenInCookie(String accessToken, HttpServletResponse response) {
-		Cookie cookie = new Cookie("accessToken", accessToken);
-		cookie.setPath("/"); // /부터 시작하는 모든 경로에 대해서 쿠키 설정
-		cookie.setHttpOnly(true); // javascript로 쿠키 접근 막음
-		response.addCookie(cookie);
+	
+	public boolean checkRefreshTokenExpire(HashMap<String, String> refreshedTokens) {
+		String refreshedAccessToken = refreshedTokens.get("refreshedAccessToken");
+		String refreshedRefreshToken = refreshedTokens.get("refreshedRefreshToken");
 		
+		HashMap<String, Object> kakaoUserInfo = getKakaoUserInfo(refreshedAccessToken);
+		String loginId = kakaoUserInfo.get("loginId").toString();
+		
+		User user = userRepository.findByLoginId(loginId);
+		
+		if(!user.getRefreshToken().equals(refreshedRefreshToken)) {
+			return false;
+		}
+		
+		return true;
 	}
-
+	
+	
 	@Override
 	public void updateUser(Map<String, Object> userInfoMap, String accessToken) {
 		HashMap<String, Object> kakaoUserInfoMap = getKakaoUserInfo(accessToken);
@@ -286,5 +349,6 @@ public class KakaoServiceImpl implements KakaoService {
 			userRepository.save(userDTO.toEntity());
 		}
 	}
+
 
 }

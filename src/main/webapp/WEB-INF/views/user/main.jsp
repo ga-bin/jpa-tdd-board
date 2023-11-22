@@ -7,7 +7,7 @@
 <title>Insert title here</title>
 </head>
 <body>
-	<h1>로그인 성공!</h1>
+	<h1>메인화면이다</h1>
 </body>
 <script>
 	

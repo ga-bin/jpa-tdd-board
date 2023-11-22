@@ -23,6 +23,7 @@ public class UserDTO {
 	private LocalDateTime registDt;
 	private LocalDateTime updateDt;
 	private String refreshToken;
+	private String tokenProvider;
 	
 	public User toEntity() {
 		User user = User.builder()
@@ -34,6 +35,7 @@ public class UserDTO {
 						.registDt(registDt)
 						.updateDt(updateDt)
 						.refreshToken(refreshToken)
+						.tokenProvider(tokenProvider)
 						.build();
 		
 		return user;

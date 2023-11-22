@@ -3,6 +3,7 @@ package com.project.board.domain.user;
 import java.util.HashMap;
 import java.util.Map;
 
+import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
@@ -16,19 +17,25 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.view.RedirectView;
 
+import com.project.board.common.HttpService;
+import com.project.board.common.security.TokenProvider;
+
 @Controller
 public class UserController {
 
 	private final UserService userService;
 	private final KakaoService kakaoService;
+	private final HttpService httpService;
 	
-	public UserController(UserService userService, KakaoService kakaoService) {
+	public UserController(UserService userService, KakaoService kakaoService, HttpService httpService) {
 		this.userService = userService;
 		this.kakaoService = kakaoService;
+		this.httpService = httpService;
 	}
 	
+	
 	@GetMapping("/")
-	public String mainView() {
+	public String loginView1() {
 		return "redirect:/loginView";
 	}
 	
@@ -46,42 +53,51 @@ public class UserController {
 	public String redirectView(@RequestParam("code") String code, HttpServletResponse response, Model model) {
 		HashMap<String, String> hashMap = kakaoService.kakaoLogin(code);
 		String accessToken = hashMap.get("accessToken");
+		String refreshToken = hashMap.get("refreshToken");
 		String nickName = hashMap.get("nickName");
 		String returnMessage = hashMap.get("returnMessage");
 		
-		kakaoService.setAccessTokenInCookie(accessToken, response);
+		httpService.setInCookie("accessToken", accessToken, response);
+		httpService.setInCookie("refreshToken", refreshToken, response);
+		httpService.setInCookie("provider", TokenProvider.KAKAO.getProvider(), response);
+		
 		model.addAttribute("nickName", nickName);
 		
 		if(returnMessage == "needExtraInfo") {
 			return "user/extraInfo";
 		}
 		
-		return "user/redirect";
+		return "redirect:/mainView";
 	}
 	
 	@ResponseBody
 	@PostMapping("/kakaoLoginExtraInfo") 
 	public String kakaoSignIn(@CookieValue(name = "accessToken", required = true) String accessToken,@RequestBody Map<String, Object> userInfoMap) {
-		if(kakaoService.checkAccessTokenExpire(accessToken)) {
-			kakaoService.updateUser(userInfoMap, accessToken);			
-			return "success";
-		} else {
-			return "accessTokenExpired"; 
-		}
-		
+		kakaoService.updateUser(userInfoMap, accessToken);			
+		return "success";
 	}
 	
 	
-	@GetMapping("/redirect")
-	public String redirectView() {
-		return "user/redirect";
+	@GetMapping("/mainView")
+	public String mainView() {
+		return "user/main";
 	}
 	
 	
 	@PostMapping("/kakaoLogout")
-	public String goKakaoLogout(HttpSession httpSession) {
-		kakaoService.kakaoLogout(httpSession);
-		return "redirect:/catlogin"; 
+	public String goKakaoLogout(@CookieValue(name = "accessToken", required = true) String accessToken) {
+		kakaoService.kakaoLogout(accessToken);
+		return "redirect:/"; 
 	}
 	
+	@GetMapping("/signInView")
+	public String singInView() {
+		return "user/signIn";
+	}
+	
+	@PostMapping("/signIn")
+	public String signIn(@RequestBody Map<String, Object> userInfoMap) {
+		userService.signIn(userInfoMap);
+		return "success";
+	}
 }

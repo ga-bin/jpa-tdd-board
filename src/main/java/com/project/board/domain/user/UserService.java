@@ -4,5 +4,7 @@ import java.util.Map;
 
 public interface UserService {
 
+	public void signIn(Map<String, Object> userInfoMap);
+
 
 }
