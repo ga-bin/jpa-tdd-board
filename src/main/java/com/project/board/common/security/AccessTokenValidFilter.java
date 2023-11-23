@@ -26,16 +26,19 @@ public class AccessTokenValidFilter extends OncePerRequestFilter {
 	KakaoService kakaoService;
 
 	
+
 	@Override
 	protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
 			throws ServletException, IOException {
 		// prodiver가 kakao냐 일반이냐에 따라서 다른 로직 타도록
 		String provider = httpService.getCookieValueFromRequest(request, "provider"); 
 		
-		if(provider.equals(TokenProvider.KAKAO.getProvider())) {
-			checkKakaoAccesssTokenExpire(request, response);
-		} else {
-			checkAccessTokenExpire(request.getCookies());
+		if(provider != null) {
+			if(provider.equals(TokenProvider.KAKAO.getProvider())) {
+				checkKakaoAccesssTokenExpire(request, response);
+			} else {
+				checkAccessTokenExpire(request.getCookies());
+			}
 		}
 		
 		filterChain.doFilter(request, response);
@@ -57,7 +60,7 @@ public class AccessTokenValidFilter extends OncePerRequestFilter {
 				response.sendRedirect("/");
 			} else {
 				httpService.setInCookie("accessToken", refreshedAccessToken, response);
-			}			
+			}
 		}		
 	}
 

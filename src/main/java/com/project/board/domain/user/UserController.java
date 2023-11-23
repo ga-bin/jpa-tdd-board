@@ -95,6 +95,7 @@ public class UserController {
 		return "user/signIn";
 	}
 	
+	@ResponseBody
 	@PostMapping("/signIn")
 	public String signIn(@RequestBody Map<String, Object> userInfoMap) {
 		userService.signIn(userInfoMap);
